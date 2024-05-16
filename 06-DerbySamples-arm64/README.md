@@ -20,10 +20,25 @@ docker buildx build -t radiantone/derby:${DERBY_VERSION}-arm64 --platform linux/
 ```
 
 ## Run Container
-Running Apache Derby ARM64 image. This image is best run via docker compose. The start utilizes several environment variables that are as follows:
- 
+Running Apache Derby ARM64 image. This image is best run via docker compose. The start utilizes several environment variables that are defined in the container as follows:
+| Variable      | Default Value | Description     |
+| :---          |    :----     |          :---   |
+| DERBY_VERSION | "10.17.1.0" | Apache Derby Version |
+| DERBY_INSTALL | "/opt/apache/derby" | Derby Install Directory for product. This is also the volume mount point for product installation.  |
+| DERBY_HOME | "${DERBY_INSTALL}/product" | Product install root |
+| DERBY_LIB | "${DERBY_HOME}/lib" | Location for java libraries and jars |
+| DERBY_BIN | "${DERBY_HOME}/bin" | Location for binaries and scripts |
+| DERBY_DATA | "/opt/apache/derbydata" | Derby data location. This is also the volume mount point for data and databases | 
+| DERBY_DBS | "${DERBY_DATA}/databases" | Location of the sample databases. A separate volume is so that we can upgrade Derby without impacting the databases. |
+|  |  |
+
+These variables are also utilized in the Apache Derby startup script.
+
+ #### Run commands
 ```
-DERBY_VERSION="10.17.1.0"
+export DERBY_VERSION="10.17.1.0"
+docker volume create apache_derby
+docker volume create apache_derby_data
 docker run -it --hostname=myderby -p 1527:1527 radiantone/derby:${DERBY_VERSION}-arm64
 ```
 
