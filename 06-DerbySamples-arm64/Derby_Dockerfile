@@ -1,0 +1,65 @@
+#Docker file for derby on arm64
+# temurin uses ubuntu as a base image
+
+FROM arm64v8/eclipse-temurin:22-jdk AS jdk
+
+LABEL MAINTAINER "asharma@radiantlogic.com"
+
+FROM --platform=linux/arm64/v8 amazonlinux:2
+
+ARG DERBY_VERSION="10.17.1.0"
+ARG JAVA_HOME="/opt/java/openjdk"
+ARG DERBY_INSTALL="/opt/apache/derby"
+ARG DERBY_HOME="${DERBY_INSTALL}/product"
+ARG DERBY_LIB="${DERBY_HOME}/lib"
+ARG DERBY_BIN="${DERBY_HOME}/bin"
+ARG DERBY_DATA="/opt/apache/derbydata"
+ARG DERBY_DBS="${DERBY_DATA}/databases"
+ARG CLASSPATH=${DERBY_LIB}:$CLASSPATH
+#
+# Now put these variables in the environment as well
+#
+ENV DERBY_VERSION=${DERBY_VERSION}
+ENV DERBY_INSTALL=${DERBY_INSTALL}
+ENV JAVA_HOME=${JAVA_HOME}
+ENV DERBY_HOME=${DERBY_HOME}
+ENV DERBY_LIB=${DERBY_LIB}
+ENV DERBY_BIN=${DERBY_BIN}
+ENV DERBY_DATA=${DERBY_DATA}
+ENV DERBY_DBS=${DERBY_DBS}
+ENV CLASSPATH=${CLASSPATH}
+
+ENV PATH=${JAVA_HOME}/bin:${DERBY_BIN}:$PATH
+
+# RUN mkdir -p ${JAVA_HOME}
+
+COPY --from=jdk ${JAVA_HOME} ${JAVA_HOME}
+
+RUN mkdir -p ${DERBY_INSTALL}
+RUN mkdir -p ${DERBY_DATA}
+
+RUN yum update --setopt=tsflags=nodocs -y && \
+      yum install -y hostname nc wget gzip shadow-utils tar bind-utils netcat && \
+      yum clean all
+
+RUN \
+    wget https://dist.apache.org/repos/dist/release/db/derby/db-derby-${DERBY_VERSION}/db-derby-${DERBY_VERSION}-bin.tar.gz && \
+    tar xzf /db-derby-${DERBY_VERSION}-bin.tar.gz && \
+    mv /db-derby-${DERBY_VERSION}-bin /product && mv /product "${DERBY_INSTALL}" && \
+    rm -Rf /*.tar.gz ${DERBY_HOME}/demo ${DERBY_HOME}/javadoc ${DERBY_HOME}/docs ${DERBY_HOME}/test ${DERBY_HOME}/*.html ${DERBY_HOME}/KEYS \
+    rm -rf /var/lib/apt/lists/*
+
+RUN echo "derby version=${DERBY_VERSION}" > ${DERBY_HOME}/version-info
+COPY ./databases.tgz ${DERBY_DATA}
+
+COPY ./runDerby.sh ${DERBY_HOME}
+
+RUN chmod +x ${DERBY_HOME}/runDerby.sh
+
+EXPOSE 1527
+
+WORKDIR ${DERBY_HOME}
+
+CMD ["/bin/sh", "runDerby.sh"]
+
+HEALTHCHECK CMD nc -z localhost 1527 || exit 1
